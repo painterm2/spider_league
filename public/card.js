@@ -160,10 +160,10 @@ async function drawShareCard(canvas, data) {
   ctx.fillStyle = CARD.dim;
   ctx.font = body(23);
   const credit = [
-    data.submitter ? `Scouted by ${data.submitter}` : null,
-    data.teamName ? `Signed to ${data.teamName}` : null,
+    data.teamName ? `Team ${data.teamName}` : "Free agent — unsigned",
+    data.state ? `found in ${data.state}` : null,
   ].filter(Boolean).join("  ·  ");
-  ctx.fillText(credit || "Free agent — unsigned", 36, H - 44);
+  ctx.fillText(credit, 36, H - 44);
   ctx.textAlign = "right";
   ctx.fillStyle = CARD.moss;
   ctx.font = display(23);

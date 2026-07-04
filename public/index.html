@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
@@ -124,10 +124,11 @@
           <img id="preview" class="preview hidden" alt="Your spider" />
         </label>
         <label class="field">
-          <span>Handler name <em>(that's you)</em></span>
-          <input type="text" id="submitter" maxlength="40" placeholder="e.g. Dana" autocomplete="name" />
+          <span>State found <em>(helps the judge ID it)</em></span>
+          <select id="state-select"></select>
         </label>
         <button id="btn-analyze" class="btn btn-primary btn-big" disabled>Submit for Evaluation</button>
+        <p class="modal-hint">You'll pick whose team it joins after the verdict.</p>
       </div>
 
       <!-- Step 2: judging -->
@@ -178,14 +179,14 @@
 
           <div id="save-controls" class="save-controls">
             <label class="field">
-              <span>Sign to a team</span>
+              <span>Who found it?</span>
               <select id="team-select"></select>
             </label>
             <label class="field hidden" id="new-team-field">
-              <span>New team name</span>
-              <input type="text" id="team-name" maxlength="40" placeholder="e.g. The Web Slingers" />
+              <span>New name</span>
+              <input type="text" id="team-name" maxlength="40" placeholder="e.g. Dana" />
             </label>
-            <button id="btn-save" class="btn btn-primary">Sign to Team</button>
+            <button id="btn-save" class="btn btn-primary">Sign It</button>
           </div>
           <p id="save-confirm" class="save-confirm hidden"></p>
 
@@ -203,7 +204,7 @@
 
   <canvas id="card-canvas" width="1080" height="1350" hidden></canvas>
 
-  <script src="card.js?v=4"></script>
-  <script src="app.js?v=4"></script>
+  <script src="card.js?v=5"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

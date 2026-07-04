@@ -37,7 +37,7 @@ app.get("/api/config", async (_req, res) => {
 
 app.post("/api/analyze", async (req, res) => {
   try {
-    const { image, submitter } = req.body || {};
+    const { image, state } = req.body || {};
     const parsed = parseDataUrl(image);
     if (!parsed) {
       return res.status(400).json({ error: "The photo didn't upload cleanly — try picking it again." });
@@ -48,7 +48,7 @@ app.post("/api/analyze", async (req, res) => {
       });
     }
 
-    const analysis = await analyzeSpider(parsed.base64, parsed.mediaType, submitter);
+    const analysis = await analyzeSpider(parsed.base64, parsed.mediaType, { state });
     res.json({ analysis, demoMode: DEMO_MODE });
   } catch (err) {
     console.error("analyze failed:", err);
@@ -67,7 +67,7 @@ app.post("/api/analyze", async (req, res) => {
 
 app.post("/api/spiders", async (req, res) => {
   try {
-    const { image, submitter, teamName, analysis } = req.body || {};
+    const { image, submitter, teamName, analysis, state } = req.body || {};
     if (!analysis || typeof analysis !== "object") {
       return res.status(400).json({ error: "Missing evaluation — submit the photo again." });
     }
@@ -87,11 +87,14 @@ app.post("/api/spiders", async (req, res) => {
 
     const str = (v, n = 400) => String(v ?? "").slice(0, n);
     const clamp = (n) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
+    // In this league the handler is the team, so the submitter defaults to the
+    // team's own name unless one was explicitly provided.
     const spider = await db.addSpider({
       id: db.id(),
       teamId: team.id,
       teamName: team.name,
-      submitter: str(submitter, 40) || "Anonymous Handler",
+      submitter: str(submitter, 40) || team.name,
+      state: str(state, 30),
       imageId,
       imageUrl,
       commonName: str(analysis.common_name, 80),

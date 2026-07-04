@@ -105,8 +105,8 @@ function fillTeamList(teams) {
   const select = $("team-select");
   const current = select.value;
   select.innerHTML =
-    (teams || []).map((t) => `<option value="${esc(t)}">Team ${esc(t)}</option>`).join("") +
-    `<option value="__new__">＋ Add a new team…</option>`;
+    (teams || []).map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join("") +
+    `<option value="__new__">＋ New name…</option>`;
   if ([...select.options].some((o) => o.value === current)) select.value = current;
   toggleNewTeamField();
 }
@@ -115,6 +115,26 @@ function toggleNewTeamField() {
   show("new-team-field", $("team-select").value === "__new__");
 }
 $("team-select").addEventListener("change", toggleNewTeamField);
+
+/* ---------- state picker ---------- */
+const US_STATES = [
+  "Illinois", "Ohio", "Indiana", "Michigan", "Wisconsin", "Iowa", "Missouri",
+  "Minnesota", "Kentucky", "Alabama", "Alaska", "Arizona", "Arkansas",
+  "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia",
+  "Hawaii", "Idaho", "Kansas", "Louisiana", "Maine", "Maryland",
+  "Massachusetts", "Mississippi", "Montana", "Nebraska", "Nevada",
+  "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina",
+  "North Dakota", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island",
+  "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
+  "Virginia", "Washington", "West Virginia", "Wyoming", "Outside the US",
+];
+const DEFAULT_STATE = "Illinois"; // most submissions are Midwest
+(function fillStates() {
+  const sel = $("state-select");
+  sel.innerHTML =
+    `<option value="">Not sure / skip</option>` +
+    US_STATES.map((s) => `<option value="${esc(s)}"${s === DEFAULT_STATE ? " selected" : ""}>${esc(s)}</option>`).join("");
+})();
 
 function updateHero({ teams, spiders }) {
   $("stat-spiders").textContent = spiders.length;
@@ -204,7 +224,7 @@ $("btn-analyze").addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image: state.imageDataUrl,
-        submitter: $("submitter").value.trim(),
+        state: $("state-select").value,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -305,7 +325,7 @@ $("btn-save").addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image: state.imageDataUrl,
-        submitter: $("submitter").value.trim(),
+        state: $("state-select").value,
         teamName,
         analysis: state.result.analysis,
       }),
@@ -338,8 +358,8 @@ async function makeCardBlob() {
     power: a.power,
     report: a.scouting_report,
     grade: grade((a.beauty + a.power) / 2),
-    submitter: $("submitter").value.trim(),
     teamName: state.saved ? state.savedTeam : "",
+    state: $("state-select").value,
     isSpider: !!a.is_spider,
     extraScary: isExtraScary(a),
   });
@@ -425,7 +445,7 @@ function spiderCard(s) {
         <span class="species">${esc(s.commonName)} · <i>${esc(s.scientificName)}</i></span>
         ${s.headlineQuote ? `<p class="spider-card-quote">“${esc(s.headlineQuote)}”</p>` : ""}
         <div class="spider-card-stats"><span class="b">B ${s.beauty}</span><span class="p">P ${s.power}</span></div>
-        <div class="meta">${esc(s.teamName)} · scouted by ${esc(s.submitter)}</div>
+        <div class="meta">Team ${esc(s.teamName)}${s.state ? ` · found in ${esc(s.state)}` : ""}</div>
       </div>
     </div>`;
 }
