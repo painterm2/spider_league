@@ -65,13 +65,34 @@ function resetSubmitFlow() {
 }
 
 /* ---------- config + hero ---------- */
-fetch("/api/config")
-  .then((r) => r.json())
-  .then((cfg) => {
+async function loadConfig() {
+  try {
+    const res = await fetch("/api/config", { cache: "no-store" });
+    if (!res.ok) throw new Error();
+    const cfg = await res.json();
     if (cfg.demoMode) $("demo-banner").classList.remove("hidden");
     fillTeamList(cfg.teams);
-  })
-  .catch(() => {});
+  } catch {
+    // Backend unreachable — say so plainly instead of failing cryptically later.
+    fillTeamList([]);
+    const banner = $("demo-banner");
+    banner.textContent = "⚠️ Can't reach the league office. Start the server with `npm start` and open the site at its address (e.g. http://localhost:3000) — not as a plain file.";
+    banner.classList.remove("hidden");
+  }
+}
+loadConfig();
+
+/* Translate raw browser/network failures into something actionable. */
+function friendlyError(err) {
+  const msg = err?.message || String(err);
+  if (
+    err instanceof TypeError ||
+    /did not match the (expected )?pattern|failed to fetch|load failed|networkerror|unexpected token|json parse/i.test(msg)
+  ) {
+    return "Couldn't reach the league office. Make sure the server is running (npm start) and reload the page.";
+  }
+  return msg;
+}
 
 function fillTeamList(teams) {
   const select = $("team-select");
@@ -109,13 +130,21 @@ fileInput.addEventListener("change", () => handleFile(fileInput.files[0]));
 );
 
 async function handleFile(file) {
-  if (!file || !file.type.startsWith("image/")) return;
+  if (!file) return;
   hideError();
-  state.imageDataUrl = await downscale(file, 1568, 0.88);
-  $("preview").src = state.imageDataUrl;
-  $("preview").classList.remove("hidden");
-  dropzone.querySelector(".dropzone-idle").classList.add("hidden");
-  $("btn-analyze").disabled = false;
+  try {
+    const dataUrl = await downscale(file, 1568, 0.88);
+    if (!dataUrl.startsWith("data:image/jpeg") || dataUrl.length < 200) {
+      throw new Error("That photo couldn't be read. Try a JPEG or PNG — on iPhone, a screenshot of the photo always works.");
+    }
+    state.imageDataUrl = dataUrl;
+    $("preview").src = state.imageDataUrl;
+    $("preview").classList.remove("hidden");
+    dropzone.querySelector(".dropzone-idle").classList.add("hidden");
+    $("btn-analyze").disabled = false;
+  } catch (err) {
+    showError(err.message || "That photo couldn't be read — try another one.");
+  }
 }
 
 function downscale(file, maxEdge, quality) {
@@ -171,8 +200,8 @@ $("btn-analyze").addEventListener("click", async () => {
         submitter: $("submitter").value.trim(),
       }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "The evaluation desk is unavailable.");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `The evaluation desk returned an error (${res.status}).`);
     state.result = data;
     state.saved = false;
     renderResult(data);
@@ -181,7 +210,7 @@ $("btn-analyze").addEventListener("click", async () => {
   } catch (err) {
     show("step-judging", false);
     show("step-upload", true);
-    showError(err.message);
+    showError(friendlyError(err));
   } finally {
     clearInterval(judgingTimer);
   }
@@ -269,16 +298,16 @@ $("btn-save").addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: state.result.token, teamName }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Could not save.");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Could not save (${res.status}).`);
     state.saved = true;
     state.savedTeam = data.team.name;
     $("save-confirm").textContent = `✅ ${data.spider.nickname} signed to Team ${data.team.name}!`;
     show("save-confirm", true);
     $("save-controls").style.display = "none";
-    fetch("/api/config").then((r) => r.json()).then((cfg) => fillTeamList(cfg.teams)).catch(() => {});
+    loadConfig();
   } catch (err) {
-    showError(err.message);
+    showError(friendlyError(err));
   } finally {
     $("btn-save").disabled = false;
   }
@@ -332,9 +361,16 @@ $("btn-again").addEventListener("click", resetSubmitFlow);
 
 /* ---------- leaderboard ---------- */
 async function loadLeague() {
-  const league = await fetch("/api/league").then((r) => r.json());
+  let league;
+  try {
+    league = await fetch("/api/league", { cache: "no-store" }).then((r) => r.json());
+  } catch {
+    $("standings").innerHTML = `<p class="empty-state">Can't reach the league office — is the server running?</p>`;
+    return;
+  }
   const { teams, spiders } = league;
   updateHero(league);
+  fillTeamList(teams.map((t) => t.name)); // backup fill in case /api/config was missed
 
   const standings = $("standings");
   if (!teams.length) {

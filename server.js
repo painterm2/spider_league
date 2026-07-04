@@ -1,3 +1,4 @@
+import "./lib/env.js"; // must stay first — loads .env before analyze.js reads it
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -9,7 +10,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: "30mb" }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(
+  express.static(path.join(__dirname, "public"), {
+    setHeaders(res, filePath) {
+      // Always revalidate the HTML so shipped updates can't pair a stale page
+      // with fresh scripts (or vice versa).
+      if (filePath.endsWith(".html")) res.setHeader("Cache-Control", "no-cache");
+    },
+  })
+);
 app.use("/images", express.static(db.UPLOADS_DIR, { maxAge: "365d", immutable: true }));
 
 // Analyses that came back from the judge but haven't been saved to a team yet.
@@ -24,7 +33,12 @@ app.post("/api/analyze", async (req, res) => {
     const { image, submitter } = req.body || {};
     const parsed = parseDataUrl(image);
     if (!parsed) {
-      return res.status(400).json({ error: "Send `image` as a data URL (jpeg/png/webp/gif)." });
+      return res.status(400).json({ error: "The photo didn't upload cleanly — try picking it again." });
+    }
+    if (parsed.unsupported) {
+      return res.status(415).json({
+        error: `That image format (${parsed.unsupported}) isn't supported — use a JPEG, PNG, or WebP. On iPhone, a screenshot of the photo works too.`,
+      });
     }
 
     const analysis = await analyzeSpider(parsed.base64, parsed.mediaType, submitter);
@@ -38,7 +52,16 @@ app.post("/api/analyze", async (req, res) => {
     res.json({ token, imageId, analysis, demoMode: DEMO_MODE });
   } catch (err) {
     console.error("analyze failed:", err);
-    res.status(err.status || 500).json({ error: err.message || "The judge is unavailable. Try again." });
+    // Anthropic SDK errors carry a status + API message; keep it readable.
+    const status = Number(err.status) || 500;
+    const detail = err.error?.error?.message || err.message || "";
+    const friendly =
+      status === 401
+        ? "The judge's credentials were rejected — check ANTHROPIC_API_KEY in .env (no quotes, no spaces) and restart the server."
+        : status === 429
+          ? "The judge is swamped — wait a moment and resubmit."
+          : `The evaluation desk hit a snag${detail ? `: ${detail}` : "."} Try again.`;
+    res.status(status).json({ error: friendly });
   }
 });
 
@@ -137,9 +160,21 @@ app.listen(PORT, () => {
 });
 
 function parseDataUrl(dataUrl) {
-  const match = /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl || "");
-  if (!match) return null;
-  return { mediaType: match[1], base64: match[2] };
+  if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) return null;
+  const comma = dataUrl.indexOf(",");
+  if (comma === -1) return null;
+
+  const header = dataUrl.slice(5, comma); // e.g. "image/jpeg;base64"
+  if (!/base64/i.test(header)) return null;
+  const mediaType = header.split(";")[0].trim().toLowerCase();
+  if (!/^image\/(jpeg|png|webp|gif)$/.test(mediaType)) {
+    return { unsupported: mediaType || "unknown" };
+  }
+
+  const base64 = dataUrl.slice(comma + 1).replace(/\s+/g, "");
+  // A broken canvas export ("data:,") or empty pick shouldn't reach the judge.
+  if (base64.length < 100) return null;
+  return { mediaType, base64 };
 }
 
 function cleanName(name) {
