@@ -140,9 +140,9 @@ function updateHero(count, awards) {
   $("stat-spiders").textContent = count;
   const p = awards.power, b = awards.beauty;
   $("stat-power").textContent = p ? p.power : "—";
-  $("stat-power-name").textContent = p ? `“${p.nickname}”` : "";
+  $("stat-power-name").textContent = p ? p.commonName : "";
   $("stat-beauty").textContent = b ? b.beauty : "—";
-  $("stat-beauty-name").textContent = b ? `“${b.nickname}”` : "";
+  $("stat-beauty-name").textContent = b ? b.commonName : "";
 }
 
 /* ---------- image pick + downscale ---------- */
@@ -257,9 +257,8 @@ function grade(avg) {
 
 function renderResult({ analysis: a }) {
   $("result-photo").src = state.imageDataUrl;
-  $("result-nickname").textContent = `“${a.nickname}”`;
+  $("result-nickname").textContent = a.common_name;
   $("result-quote").textContent = a.headline_quote;
-  $("result-common").textContent = a.common_name;
   $("result-sci").textContent = a.scientific_name;
   $("result-confidence").textContent = `${a.confidence} confidence ID`;
   $("result-grade").textContent = grade((a.beauty + a.power) / 2);
@@ -337,7 +336,7 @@ $("btn-save").addEventListener("click", async () => {
     if (!res.ok) throw new Error(data.error || `Could not save (${res.status}).`);
     state.saved = true;
     state.savedTeam = data.team.name;
-    $("save-confirm").textContent = `✅ ${data.spider.nickname} signed to Team ${data.team.name}!`;
+    $("save-confirm").textContent = `✅ ${data.spider.commonName} signed to Team ${data.team.name}!`;
     show("save-confirm", true);
     $("save-controls").style.display = "none";
     loadConfig();
@@ -353,7 +352,6 @@ async function makeCardBlob() {
   const a = state.result.analysis;
   return drawShareCard($("card-canvas"), {
     photo: state.imageDataUrl,
-    nickname: a.nickname,
     quote: a.headline_quote,
     commonName: a.common_name,
     scientificName: a.scientific_name,
@@ -373,7 +371,7 @@ $("btn-card").addEventListener("click", async () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = slug(state.result.analysis.nickname) + "-spider-league.png";
+  link.download = slug(state.result.analysis.common_name) + "-spider-league.png";
   link.click();
   URL.revokeObjectURL(url);
 });
@@ -385,7 +383,7 @@ $("btn-share").addEventListener("click", async () => {
   const payload = {
     files: [file],
     title: "Spider League",
-    text: `${a.nickname} — ${a.common_name}. Beauty ${a.beauty} / Power ${a.power}. 🕷️`,
+    text: `${a.common_name} — Beauty ${a.beauty} / Power ${a.power}. 🕷️`,
   };
   try {
     if (navigator.canShare && navigator.canShare(payload)) await navigator.share(payload);
@@ -519,8 +517,8 @@ function spiderCard(s) {
     <div class="spider-card">
       <img src="${esc(spiderPhoto(s))}" alt="${esc(s.commonName)}" loading="lazy" />
       <div class="spider-card-body">
-        <strong>“${esc(s.nickname)}”</strong>
-        <span class="species">${esc(s.commonName)} · <i>${esc(s.scientificName)}</i></span>
+        <strong>${esc(s.commonName)}</strong>
+        <span class="species"><i>${esc(s.scientificName)}</i></span>
         ${s.headlineQuote ? `<p class="spider-card-quote">“${esc(s.headlineQuote)}”</p>` : ""}
         <div class="spider-card-stats"><span class="b">B ${s.beauty}</span><span class="p">P ${s.power}</span></div>
         <div class="meta">Team ${esc(s.teamName)}${s.state ? ` · found in ${esc(s.state)}` : ""}</div>
@@ -535,7 +533,7 @@ function best(spiders, stat) {
 function renderAward(elId, spider, stat) {
   $(elId).innerHTML = spider
     ? `<img src="${esc(spiderPhoto(spider))}" alt="" />
-       <div><strong>“${esc(spider.nickname)}”</strong>${esc(spider.commonName)}<br>${esc(spider.teamName)}</div>
+       <div><strong>${esc(spider.commonName)}</strong><i>${esc(spider.scientificName)}</i><br>Team ${esc(spider.teamName)}</div>
        <span class="score ${stat === "beauty" ? "beauty" : "power"}">${spider[stat]}</span>`
     : `<p class="empty-state">Vacant title.</p>`;
 }

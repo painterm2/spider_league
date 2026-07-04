@@ -108,10 +108,10 @@ async function drawShareCard(canvas, data) {
   ctx.textBaseline = "alphabetic";
   let y = PHOTO_H + 78;
 
-  // nickname
+  // species name — the headline
   ctx.fillStyle = CARD.text;
-  ctx.font = display(fitSize(ctx, `“${data.nickname}”`, W - 72, 54, 32, display));
-  ctx.fillText(`“${data.nickname}”`, 36, y);
+  ctx.font = display(fitSize(ctx, data.commonName, W - 72, 54, 30, display));
+  ctx.fillText(data.commonName, 36, y);
 
   // headline quote — the star of the card
   y += 30;
@@ -127,11 +127,11 @@ async function drawShareCard(canvas, data) {
   ctx.fillStyle = CARD.dim;
   ctx.fillText("— league correspondent, on record", 36, y);
 
-  // species line
+  // scientific name
   y += 48;
-  ctx.font = body(28);
+  ctx.font = bodyItalic(28);
   ctx.fillStyle = CARD.dim;
-  ctx.fillText(`${data.commonName}  ·  ${data.scientificName}`, 36, y);
+  ctx.fillText(data.scientificName, 36, y);
 
   // stat bars
   y += 52;
