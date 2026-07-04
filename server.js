@@ -8,6 +8,9 @@ import * as db from "./lib/db.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+// Bump on each deploy so a browser can confirm which build is actually live.
+const APP_VERSION = "v6-blobfix-health";
+
 app.use(express.json({ limit: "30mb" }));
 app.use(
   express.static(path.join(__dirname, "public"), {
@@ -26,6 +29,7 @@ app.use("/images", express.static(db.UPLOADS_DIR, { maxAge: "365d", immutable: t
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
+    version: APP_VERSION,
     demoMode: DEMO_MODE,
     anthropicKeyPresent: !DEMO_MODE,
     storage: db.storageDiagnostics(),
@@ -35,6 +39,7 @@ app.get("/api/health", (_req, res) => {
 app.get("/api/config", async (_req, res) => {
   try {
     res.json({
+      version: APP_VERSION,
       demoMode: DEMO_MODE,
       storageReady: db.storageReady,
       storageHint: db.storageReady ? null : db.STORAGE_HINT,
