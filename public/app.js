@@ -277,12 +277,7 @@ function renderResult({ analysis: a }) {
 
   const dangerEl = $("result-danger");
   dangerEl.classList.toggle("danger-hot", a.danger_to_humans === "medically significant");
-  dangerEl.textContent =
-    a.danger_to_humans === "medically significant"
-      ? "⚠️ Medically significant venom — admire from a distance, do not handle."
-      : a.danger_to_humans === "mildly venomous"
-        ? "Mildly venomous — a nip you'd notice, nothing more."
-        : "Harmless to humans.";
+  dangerEl.textContent = dangerText(a.danger_to_humans);
 
   renderScaredReaction(a);
 
@@ -402,6 +397,7 @@ async function loadLeague() {
     $("standings").innerHTML = `<p class="empty-state">Can't reach the league office — is the server running?</p>`;
     return;
   }
+  indexSpiders(leagueCache.spiders);
   fillTeamList(leagueCache.teams.map((t) => t.name)); // backup fill in case /api/config was missed
   buildHistoryBar(leagueCache.spiders);
   renderSnapshot(null); // "Live"
@@ -512,9 +508,79 @@ function spiderPhoto(s) {
   return s.imageUrl || "/images/" + s.imageId;
 }
 
+function dangerText(danger) {
+  return danger === "medically significant"
+    ? "⚠️ Medically significant venom — admire from a distance, do not handle."
+    : danger === "mildly venomous"
+      ? "Mildly venomous — a nip you'd notice, nothing more."
+      : "Harmless to humans.";
+}
+
+/* ---------- spider detail modal (reopen the full bio) ---------- */
+const spidersById = new Map();
+
+function indexSpiders(spiders) {
+  spidersById.clear();
+  for (const s of spiders || []) spidersById.set(s.id, s);
+}
+
+function openSpiderModal(s) {
+  const avg = (s.beauty + s.power) / 2;
+  const signed = s.createdAt ? ` · signed ${fmtDay(new Date(s.createdAt).getTime())}` : "";
+  $("spider-detail").innerHTML = `
+    <div class="result-photo-wrap">
+      <img src="${esc(spiderPhoto(s))}" alt="${esc(s.commonName)}" />
+      <span class="grade-badge">${grade(avg)}</span>
+    </div>
+    <div class="result-body">
+      <p class="result-eyebrow">OFFICIAL LEAGUE EVALUATION</p>
+      <h2 class="result-nickname">${esc(s.commonName)}</h2>
+      ${s.headlineQuote ? `<blockquote class="headline-quote">${esc(s.headlineQuote)}</blockquote>` : ""}
+      <p class="result-species">
+        <span class="sci">${esc(s.scientificName)}</span>
+        ${s.confidence ? `<span class="confidence-pill">${esc(s.confidence)} confidence ID</span>` : ""}
+      </p>
+      <div class="stat">
+        <div class="stat-head"><span>BEAUTY</span><strong>${s.beauty}</strong></div>
+        <div class="bar"><div class="bar-fill bar-beauty" style="width:${s.beauty}%"></div></div>
+        ${s.beautyNotes ? `<p class="stat-notes">${esc(s.beautyNotes)}</p>` : ""}
+      </div>
+      <div class="stat">
+        <div class="stat-head"><span>POWER</span><strong>${s.power}</strong></div>
+        <div class="bar"><div class="bar-fill bar-power" style="width:${s.power}%"></div></div>
+        ${s.powerNotes ? `<p class="stat-notes">${esc(s.powerNotes)}</p>` : ""}
+      </div>
+      ${s.scoutingReport ? `<div class="report-block"><p class="report-label">SPECIMEN EVALUATION</p><p class="scouting-report">${esc(s.scoutingReport)}</p></div>` : ""}
+      ${s.funFact ? `<p class="fun-fact"><strong>Field notes:</strong> ${esc(s.funFact)}</p>` : ""}
+      <p class="danger-line ${s.danger === "medically significant" ? "danger-hot" : ""}">${esc(dangerText(s.danger))}</p>
+      <p class="detail-meta">Team ${esc(s.teamName)}${s.state ? ` · found in ${esc(s.state)}` : ""}${signed}</p>
+    </div>`;
+  $("spider-modal").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+}
+
+function closeSpiderModal() {
+  $("spider-modal").classList.add("hidden");
+  document.body.style.overflow = "";
+}
+
+// One delegated handler covers every spider card + award, live and re-rendered.
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-spider-id]");
+  if (!el) return;
+  const s = spidersById.get(el.dataset.spiderId);
+  if (s) openSpiderModal(s);
+});
+$("spider-modal").addEventListener("click", (e) => {
+  if (e.target.closest("[data-close-spider]")) closeSpiderModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("spider-modal").classList.contains("hidden")) closeSpiderModal();
+});
+
 function spiderCard(s) {
   return `
-    <div class="spider-card">
+    <div class="spider-card" data-spider-id="${esc(s.id)}" role="button" tabindex="0">
       <img src="${esc(spiderPhoto(s))}" alt="${esc(s.commonName)}" loading="lazy" />
       <div class="spider-card-body">
         <strong>${esc(s.commonName)}</strong>
@@ -531,16 +597,25 @@ function best(spiders, stat) {
 }
 
 function renderAward(elId, spider, stat) {
-  $(elId).innerHTML = spider
-    ? `<img src="${esc(spiderPhoto(spider))}" alt="" />
+  const el = $(elId);
+  if (spider) {
+    el.dataset.spiderId = spider.id;
+    el.setAttribute("role", "button");
+    el.innerHTML = `<img src="${esc(spiderPhoto(spider))}" alt="" />
        <div><strong>${esc(spider.commonName)}</strong><i>${esc(spider.scientificName)}</i><br>Team ${esc(spider.teamName)}</div>
-       <span class="score ${stat === "beauty" ? "beauty" : "power"}">${spider[stat]}</span>`
-    : `<p class="empty-state">Vacant title.</p>`;
+       <span class="score ${stat === "beauty" ? "beauty" : "power"}">${spider[stat]}</span>`;
+  } else {
+    delete el.dataset.spiderId;
+    el.removeAttribute("role");
+    el.innerHTML = `<p class="empty-state">Vacant title.</p>`;
+  }
 }
 
 /* ---------- teams tab ---------- */
 async function loadTeams() {
-  const { teams } = await fetch("/api/league").then((r) => r.json());
+  const league = await fetch("/api/league").then((r) => r.json());
+  const { teams } = league;
+  indexSpiders(league.spiders); // so tapping a roster spider can open its bio
   $("teams-list").innerHTML = teams.length
     ? teams
         .map(
