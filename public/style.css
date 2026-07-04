@@ -293,7 +293,7 @@ main {
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .field span { font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); }
 .field em { text-transform: none; letter-spacing: 0; font-weight: 400; }
-.field input {
+.field input, .field select {
   background: var(--bg-raise-2);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -301,8 +301,9 @@ main {
   padding: 12px 14px;
   font-size: 16px;
   font-family: var(--font-body);
+  width: 100%;
 }
-.field input:focus { outline: 2px solid var(--moss-deep); border-color: transparent; }
+.field input:focus, .field select:focus { outline: 2px solid var(--moss-deep); border-color: transparent; }
 
 /* ---------- judging ---------- */
 .judging { text-align: center; padding: 56px 26px; }

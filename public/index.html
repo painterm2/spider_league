@@ -115,11 +115,11 @@
         <h2 class="modal-title">Present your specimen</h2>
         <p class="modal-sub">The evaluation desk will identify it and issue an official rating.</p>
         <label id="dropzone" class="dropzone" for="file-input">
-          <input type="file" id="file-input" accept="image/*" capture="environment" hidden />
+          <input type="file" id="file-input" accept="image/*" hidden />
           <div class="dropzone-idle">
             <div class="dropzone-icon">📸</div>
-            <strong>Tap to photograph or upload</strong>
-            <span>JPEG, PNG or WebP</span>
+            <strong>Tap to choose a photo</strong>
+            <span>Camera, photo library, or a file · JPEG, PNG or WebP</span>
           </div>
           <img id="preview" class="preview hidden" alt="Your spider" />
         </label>
@@ -179,8 +179,11 @@
           <div id="save-controls" class="save-controls">
             <label class="field">
               <span>Sign to a team</span>
-              <input type="text" id="team-name" list="team-list" maxlength="40" placeholder="e.g. The Web Slingers" />
-              <datalist id="team-list"></datalist>
+              <select id="team-select"></select>
+            </label>
+            <label class="field hidden" id="new-team-field">
+              <span>New team name</span>
+              <input type="text" id="team-name" maxlength="40" placeholder="e.g. The Web Slingers" />
             </label>
             <button id="btn-save" class="btn btn-primary">Sign to Team</button>
           </div>

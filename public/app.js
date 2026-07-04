@@ -74,8 +74,19 @@ fetch("/api/config")
   .catch(() => {});
 
 function fillTeamList(teams) {
-  $("team-list").innerHTML = (teams || []).map((t) => `<option value="${esc(t)}">`).join("");
+  const select = $("team-select");
+  const current = select.value;
+  select.innerHTML =
+    (teams || []).map((t) => `<option value="${esc(t)}">Team ${esc(t)}</option>`).join("") +
+    `<option value="__new__">＋ Add a new team…</option>`;
+  if ([...select.options].some((o) => o.value === current)) select.value = current;
+  toggleNewTeamField();
 }
+
+function toggleNewTeamField() {
+  show("new-team-field", $("team-select").value === "__new__");
+}
+$("team-select").addEventListener("change", toggleNewTeamField);
 
 function updateHero({ teams, spiders }) {
   $("stat-spiders").textContent = spiders.length;
@@ -247,8 +258,9 @@ function renderScaredReaction(a) {
 
 /* ---------- save to team ---------- */
 $("btn-save").addEventListener("click", async () => {
-  const teamName = $("team-name").value.trim();
-  if (!teamName) return showError("Pick a team name first.");
+  const selected = $("team-select").value;
+  const teamName = selected === "__new__" ? $("team-name").value.trim() : selected;
+  if (!teamName) return showError("Give the new team a name first.");
   hideError();
   $("btn-save").disabled = true;
   try {
@@ -260,7 +272,8 @@ $("btn-save").addEventListener("click", async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Could not save.");
     state.saved = true;
-    $("save-confirm").textContent = `✅ ${data.spider.nickname} signed to ${data.team.name}!`;
+    state.savedTeam = data.team.name;
+    $("save-confirm").textContent = `✅ ${data.spider.nickname} signed to Team ${data.team.name}!`;
     show("save-confirm", true);
     $("save-controls").style.display = "none";
     fetch("/api/config").then((r) => r.json()).then((cfg) => fillTeamList(cfg.teams)).catch(() => {});
@@ -285,7 +298,7 @@ async function makeCardBlob() {
     report: a.scouting_report,
     grade: grade((a.beauty + a.power) / 2),
     submitter: $("submitter").value.trim(),
-    teamName: state.saved ? $("team-name").value.trim() : "",
+    teamName: state.saved ? state.savedTeam : "",
     isSpider: !!a.is_spider,
     extraScary: isExtraScary(a),
   });
