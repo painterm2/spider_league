@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=7" />
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
@@ -36,8 +36,8 @@
       <p class="hero-sub">Find a spider. Submit it for evaluation. Sign it to your roster.</p>
       <div class="hero-stats">
         <div class="hero-stat"><strong id="stat-spiders">0</strong><span>spiders signed</span></div>
-        <div class="hero-stat"><strong id="stat-teams">0</strong><span>teams</span></div>
-        <div class="hero-stat"><strong id="stat-champ">—</strong><span>leading team</span></div>
+        <div class="hero-stat"><strong id="stat-power">—</strong><span>💪 most powerful</span><em id="stat-power-name" class="hero-stat-name"></em></div>
+        <div class="hero-stat"><strong id="stat-beauty">—</strong><span>👑 most beautiful</span><em id="stat-beauty-name" class="hero-stat-name"></em></div>
       </div>
     </div>
   </div>
@@ -54,6 +54,7 @@
           <h2 class="panel-title">Team standings</h2>
           <p class="panel-sub">Ranked by combined Beauty + Power across the full roster.</p>
         </div>
+        <div id="history-bar" class="history-bar"></div>
         <div id="standings"></div>
       </div>
 
@@ -204,7 +205,7 @@
 
   <canvas id="card-canvas" width="1080" height="1350" hidden></canvas>
 
-  <script src="card.js?v=6"></script>
-  <script src="app.js?v=6"></script>
+  <script src="card.js?v=7"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

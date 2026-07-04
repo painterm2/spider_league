@@ -136,10 +136,13 @@ const DEFAULT_STATE = "Illinois"; // most submissions are Midwest
     US_STATES.map((s) => `<option value="${esc(s)}"${s === DEFAULT_STATE ? " selected" : ""}>${esc(s)}</option>`).join("");
 })();
 
-function updateHero({ teams, spiders }) {
-  $("stat-spiders").textContent = spiders.length;
-  $("stat-teams").textContent = teams.length;
-  $("stat-champ").textContent = teams[0]?.name || "—";
+function updateHero(count, awards) {
+  $("stat-spiders").textContent = count;
+  const p = awards.power, b = awards.beauty;
+  $("stat-power").textContent = p ? p.power : "—";
+  $("stat-power-name").textContent = p ? `“${p.nickname}”` : "";
+  $("stat-beauty").textContent = b ? b.beauty : "—";
+  $("stat-beauty-name").textContent = b ? `“${b.nickname}”` : "";
 }
 
 /* ---------- image pick + downscale ---------- */
@@ -392,26 +395,50 @@ $("btn-share").addEventListener("click", async () => {
 $("btn-again").addEventListener("click", resetSubmitFlow);
 
 /* ---------- leaderboard ---------- */
+let leagueCache = null;
+
 async function loadLeague() {
-  let league;
   try {
-    league = await fetch("/api/league", { cache: "no-store" }).then((r) => r.json());
+    leagueCache = await fetch("/api/league", { cache: "no-store" }).then((r) => r.json());
   } catch {
     $("standings").innerHTML = `<p class="empty-state">Can't reach the league office — is the server running?</p>`;
     return;
   }
-  const { teams, spiders } = league;
-  updateHero(league);
-  fillTeamList(teams.map((t) => t.name)); // backup fill in case /api/config was missed
+  fillTeamList(leagueCache.teams.map((t) => t.name)); // backup fill in case /api/config was missed
+  buildHistoryBar(leagueCache.spiders);
+  renderSnapshot(null); // "Live"
+}
 
-  const standings = $("standings");
-  if (!teams.length) {
-    standings.innerHTML = `<p class="empty-state">No teams yet. The league awaits its first spider. 🕸️</p>`;
-  } else {
-    const medals = ["🥇", "🥈", "🥉"];
-    standings.innerHTML = teams
-      .map(
-        (t, i) => `
+/* Recompute standings, awards, and recent signings as they stood at `asOf`
+   (a timestamp), or right now when asOf is null. Every spider carries a
+   createdAt, so past standings are reconstructed, not stored. */
+function renderSnapshot(asOf) {
+  if (!leagueCache) return;
+  const cutoff = asOf == null ? Infinity : asOf;
+  const base = leagueCache.teams.map((t) => ({ id: t.id, name: t.name, color: t.color }));
+  const spiders = leagueCache.spiders
+    .filter((s) => new Date(s.createdAt).getTime() <= cutoff)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const teams = base
+    .map((t) => {
+      const roster = spiders
+        .filter((s) => s.teamId === t.id)
+        .sort((a, b) => (b.beauty + b.power) - (a.beauty + a.power));
+      const beauty = roster.reduce((sum, s) => sum + s.beauty, 0);
+      const power = roster.reduce((sum, s) => sum + s.power, 0);
+      return { ...t, roster, totals: { beauty, power, overall: beauty + power, spiders: roster.length } };
+    })
+    .sort((a, b) => b.totals.overall - a.totals.overall);
+
+  const awards = { beauty: best(spiders, "beauty"), power: best(spiders, "power") };
+  updateHero(spiders.length, awards);
+
+  const medals = ["🥇", "🥈", "🥉"];
+  $("standings").innerHTML = spiders.length
+    ? teams
+        .map(
+          (t, i) => `
         <div class="standing">
           <div class="standing-rank">${medals[i] || i + 1}</div>
           <div class="standing-team">
@@ -420,16 +447,67 @@ async function loadLeague() {
           </div>
           <div class="standing-score"><strong>${t.totals.overall}</strong><span>total pts</span></div>
         </div>`
-      )
-      .join("");
-  }
+        )
+        .join("")
+    : `<p class="empty-state">No spiders on the board at this point yet. 🕸️</p>`;
 
-  renderAward("award-beauty", best(spiders, "beauty"), "beauty");
-  renderAward("award-power", best(spiders, "power"), "power");
+  renderAward("award-beauty", awards.beauty, "beauty");
+  renderAward("award-power", awards.power, "power");
 
   $("recent-spiders").innerHTML = spiders.length
     ? spiders.slice(0, 12).map(spiderCard).join("")
     : `<p class="empty-state">No signings yet.</p>`;
+}
+
+/* Build the clickable "standings as of…" chips. Daily granularity for a young
+   league, weekly/monthly as it grows, capped so the row stays tidy. */
+function buildHistoryBar(spiders) {
+  const bar = $("history-bar");
+  if (!bar) return;
+  const cutoffs = snapshotCutoffs(spiders);
+
+  if (!cutoffs.length) {
+    bar.innerHTML = spiders.length
+      ? `<span class="history-label">Showing <b>Live</b> standings · past days will appear here as the league plays on.</span>`
+      : "";
+    return;
+  }
+
+  bar.innerHTML =
+    `<span class="history-label">Standings:</span>` +
+    `<button class="snap-chip active" data-as="">Live</button>` +
+    cutoffs.map((t) => `<button class="snap-chip" data-as="${t}">${esc(fmtDay(t))}</button>`).join("");
+
+  bar.querySelectorAll(".snap-chip").forEach((chip) =>
+    chip.addEventListener("click", () => {
+      bar.querySelectorAll(".snap-chip").forEach((c) => c.classList.toggle("active", c === chip));
+      renderSnapshot(chip.dataset.as ? Number(chip.dataset.as) : null);
+    })
+  );
+}
+
+function snapshotCutoffs(spiders) {
+  if (!spiders.length) return [];
+  const dayMs = 86400000;
+  const firstT = Math.min(...spiders.map((s) => new Date(s.createdAt).getTime()));
+  const spanDays = Math.max(1, Math.ceil((Date.now() - firstT) / dayMs));
+  const stepDays = spanDays <= 12 ? 1 : spanDays <= 84 ? 7 : 28;
+
+  const points = [];
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  d.setDate(d.getDate() - 1); // start at end of yesterday
+  while (points.length < 12) {
+    const t = d.getTime();
+    if (t < firstT) break;
+    points.push(t);
+    d.setDate(d.getDate() - stepDays);
+  }
+  return points; // newest first
+}
+
+function fmtDay(t) {
+  return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function spiderPhoto(s) {
