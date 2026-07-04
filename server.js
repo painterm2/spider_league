@@ -21,6 +21,17 @@ app.use(
 // Local/filesystem mode serves uploads itself; in Blob mode photos come from the CDN.
 app.use("/images", express.static(db.UPLOADS_DIR, { maxAge: "365d", immutable: true }));
 
+// Visit /api/health in a browser to see what the live deployment actually
+// detects — safe to expose (env var NAMES only, never their secret values).
+app.get("/api/health", (_req, res) => {
+  res.json({
+    ok: true,
+    demoMode: DEMO_MODE,
+    anthropicKeyPresent: !DEMO_MODE,
+    storage: db.storageDiagnostics(),
+  });
+});
+
 app.get("/api/config", async (_req, res) => {
   try {
     res.json({
