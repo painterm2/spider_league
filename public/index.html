@@ -6,127 +6,54 @@
   <title>Spider League</title>
   <meta name="description" content="Submit your spider. Get judged. Build your team. Rule the league." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕷️</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="web-bg" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
 
-  <header class="masthead">
-    <div class="masthead-inner">
-      <span class="crest">🕷️</span>
-      <div>
-        <h1>SPIDER LEAGUE</h1>
-        <p class="tagline">Submit your spider. Get judged. Rule the league.</p>
-      </div>
-    </div>
-    <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="submit" role="tab">Submit a Spider</button>
-      <button class="tab" data-tab="league" role="tab">Leaderboard</button>
-    </nav>
-    <div id="demo-banner" class="demo-banner hidden">
-      DEMO MODE — the judge is improvising. Set <code>ANTHROPIC_API_KEY</code> for real spider identification.
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/">
+        <span class="crest">🕷️</span>
+        <span class="brand-text">SPIDER<em>LEAGUE</em></span>
+      </a>
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="league" role="tab">Leaderboard</button>
+        <button class="tab" data-tab="teams" role="tab">Teams</button>
+        <button class="tab" data-tab="merch" role="tab">Merch</button>
+      </nav>
+      <button id="btn-add" class="btn btn-primary btn-cta">＋ Add to Your Team</button>
     </div>
   </header>
 
+  <div class="hero">
+    <div class="hero-inner">
+      <p class="hero-kicker">EST. IN A GROUP CHAT · SANCTIONED BY NO ONE</p>
+      <h1>THE OFFICIAL SPIDER LEAGUE</h1>
+      <p class="hero-sub">Find a spider. Submit it for evaluation. Sign it to your roster.</p>
+      <div class="hero-stats">
+        <div class="hero-stat"><strong id="stat-spiders">0</strong><span>spiders signed</span></div>
+        <div class="hero-stat"><strong id="stat-teams">0</strong><span>teams</span></div>
+        <div class="hero-stat"><strong id="stat-champ">—</strong><span>leading team</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="demo-banner" class="demo-banner hidden">
+    DEMO MODE — the evaluation desk is improvising. Set <code>ANTHROPIC_API_KEY</code> for real spider identification.
+  </div>
+
   <main>
-    <!-- ============ SUBMIT TAB ============ -->
-    <section id="tab-submit" class="tab-panel">
-
-      <!-- Step 1: upload -->
-      <div id="step-upload" class="panel">
-        <h2 class="panel-title">Present your specimen</h2>
-        <label id="dropzone" class="dropzone" for="file-input">
-          <input type="file" id="file-input" accept="image/*" capture="environment" hidden />
-          <div class="dropzone-idle">
-            <div class="dropzone-icon">📸</div>
-            <strong>Tap to photograph or upload a spider</strong>
-            <span>JPEG, PNG or WebP · the judge sees what you see</span>
-          </div>
-          <img id="preview" class="preview hidden" alt="Your spider" />
-        </label>
-
-        <div class="field-row">
-          <label class="field">
-            <span>Handler name <em>(that's you)</em></span>
-            <input type="text" id="submitter" maxlength="40" placeholder="e.g. Dana" autocomplete="name" />
-          </label>
-        </div>
-
-        <button id="btn-analyze" class="btn btn-primary btn-big" disabled>
-          Submit to the Judge
-        </button>
-      </div>
-
-      <!-- Step 2: judging in progress -->
-      <div id="step-judging" class="panel hidden judging">
-        <div class="spinner" aria-hidden="true"></div>
-        <h2 class="panel-title">The judge is deliberating…</h2>
-        <p id="judging-line" class="judging-line">Measuring leg span…</p>
-      </div>
-
-      <!-- Step 3: verdict -->
-      <div id="step-result" class="panel hidden">
-        <div id="result-card" class="result-card">
-          <div class="result-photo-wrap">
-            <img id="result-photo" alt="The spider under review" />
-            <span id="result-grade" class="grade-badge">A</span>
-          </div>
-          <div class="result-body">
-            <p class="result-eyebrow">OFFICIAL LEAGUE EVALUATION</p>
-            <h2 id="result-nickname" class="result-nickname">“The Basement Reaper”</h2>
-            <p class="result-species">
-              <span id="result-common"></span>
-              <span id="result-sci" class="sci"></span>
-              <span id="result-confidence" class="confidence-pill"></span>
-            </p>
-
-            <div class="stat">
-              <div class="stat-head"><span>BEAUTY</span><strong id="beauty-num">0</strong></div>
-              <div class="bar"><div id="beauty-bar" class="bar-fill bar-beauty"></div></div>
-              <p id="beauty-notes" class="stat-notes"></p>
-            </div>
-            <div class="stat">
-              <div class="stat-head"><span>POWER</span><strong id="power-num">0</strong></div>
-              <div class="bar"><div id="power-bar" class="bar-fill bar-power"></div></div>
-              <p id="power-notes" class="stat-notes"></p>
-            </div>
-
-            <blockquote id="result-report" class="scouting-report"></blockquote>
-            <p class="fun-fact"><strong>Field notes:</strong> <span id="result-fact"></span></p>
-            <p id="result-danger" class="danger-line"></p>
-
-            <div id="not-spider-box" class="not-spider hidden">
-              <strong>SUBMISSION REJECTED</strong>
-              <p id="not-spider-text"></p>
-            </div>
-
-            <div id="save-controls" class="save-controls">
-              <label class="field">
-                <span>Sign to a team</span>
-                <input type="text" id="team-name" list="team-list" maxlength="40" placeholder="e.g. The Web Slingers" />
-                <datalist id="team-list"></datalist>
-              </label>
-              <button id="btn-save" class="btn btn-primary">Sign to Team</button>
-            </div>
-            <p id="save-confirm" class="save-confirm hidden"></p>
-
-            <div class="share-controls">
-              <button id="btn-card" class="btn btn-ghost">⬇️ Download share card</button>
-              <button id="btn-share" class="btn btn-ghost hidden">📤 Share to the group chat</button>
-              <button id="btn-again" class="btn btn-ghost">🕷️ Submit another</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <p id="submit-error" class="error hidden"></p>
-    </section>
-
-    <!-- ============ LEAGUE TAB ============ -->
-    <section id="tab-league" class="tab-panel hidden">
+    <!-- ============ LEADERBOARD ============ -->
+    <section id="tab-league" class="tab-panel">
       <div class="panel">
-        <h2 class="panel-title">Team standings</h2>
-        <p class="panel-sub">Ranked by combined Beauty + Power across the full roster.</p>
+        <div class="panel-head">
+          <h2 class="panel-title">Team standings</h2>
+          <p class="panel-sub">Ranked by combined Beauty + Power across the full roster.</p>
+        </div>
         <div id="standings"></div>
       </div>
 
@@ -142,16 +69,134 @@
       </div>
 
       <div class="panel">
-        <h2 class="panel-title">Recent signings</h2>
+        <div class="panel-head">
+          <h2 class="panel-title">Recent signings</h2>
+        </div>
         <div id="recent-spiders" class="spider-grid"></div>
+      </div>
+    </section>
+
+    <!-- ============ TEAMS ============ -->
+    <section id="tab-teams" class="tab-panel hidden">
+      <div class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">The clubs</h2>
+          <p class="panel-sub">Open a team to inspect its full roster.</p>
+        </div>
+        <div id="teams-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ MERCH ============ -->
+    <section id="tab-merch" class="tab-panel hidden">
+      <div class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">League merch</h2>
+          <p class="panel-sub">Official-ish gear for members of record.</p>
+        </div>
+        <div id="merch-grid" class="merch-grid"></div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     SPIDER LEAGUE · all spiders were observed, judged, and released with respect ·
-    <span class="footer-warn">never handle a spider the judge flags as medically significant</span>
+    <span class="footer-warn">never handle a spider the desk flags as medically significant</span>
   </footer>
+
+  <!-- ============ SUBMIT MODAL ============ -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Add a spider to your team">
+    <div class="modal-scrim" data-close></div>
+    <div class="modal-box">
+      <button class="modal-close" data-close aria-label="Close">✕</button>
+
+      <!-- Step 1: upload -->
+      <div id="step-upload" class="modal-step">
+        <h2 class="modal-title">Present your specimen</h2>
+        <p class="modal-sub">The evaluation desk will identify it and issue an official rating.</p>
+        <label id="dropzone" class="dropzone" for="file-input">
+          <input type="file" id="file-input" accept="image/*" capture="environment" hidden />
+          <div class="dropzone-idle">
+            <div class="dropzone-icon">📸</div>
+            <strong>Tap to photograph or upload</strong>
+            <span>JPEG, PNG or WebP</span>
+          </div>
+          <img id="preview" class="preview hidden" alt="Your spider" />
+        </label>
+        <label class="field">
+          <span>Handler name <em>(that's you)</em></span>
+          <input type="text" id="submitter" maxlength="40" placeholder="e.g. Dana" autocomplete="name" />
+        </label>
+        <button id="btn-analyze" class="btn btn-primary btn-big" disabled>Submit for Evaluation</button>
+      </div>
+
+      <!-- Step 2: judging -->
+      <div id="step-judging" class="modal-step hidden judging">
+        <div class="spinner" aria-hidden="true"></div>
+        <h2 class="modal-title">The desk is deliberating…</h2>
+        <p id="judging-line" class="judging-line">Measuring leg span…</p>
+      </div>
+
+      <!-- Step 3: verdict -->
+      <div id="step-result" class="modal-step hidden">
+        <div class="result-photo-wrap">
+          <img id="result-photo" alt="The spider under review" />
+          <span id="result-grade" class="grade-badge">A</span>
+        </div>
+        <div class="result-body">
+          <p class="result-eyebrow">OFFICIAL LEAGUE EVALUATION</p>
+          <h2 id="result-nickname" class="result-nickname">“The Basement Reaper”</h2>
+          <blockquote id="result-quote" class="headline-quote"></blockquote>
+          <p class="result-species">
+            <span id="result-common"></span>
+            <span id="result-sci" class="sci"></span>
+            <span id="result-confidence" class="confidence-pill"></span>
+          </p>
+
+          <div class="stat">
+            <div class="stat-head"><span>BEAUTY</span><strong id="beauty-num">0</strong></div>
+            <div class="bar"><div id="beauty-bar" class="bar-fill bar-beauty"></div></div>
+            <p id="beauty-notes" class="stat-notes"></p>
+          </div>
+          <div class="stat">
+            <div class="stat-head"><span>POWER</span><strong id="power-num">0</strong></div>
+            <div class="bar"><div id="power-bar" class="bar-fill bar-power"></div></div>
+            <p id="power-notes" class="stat-notes"></p>
+          </div>
+
+          <div class="report-block">
+            <p class="report-label">SPECIMEN EVALUATION</p>
+            <p id="result-report" class="scouting-report"></p>
+          </div>
+          <p class="fun-fact"><strong>Field notes:</strong> <span id="result-fact"></span></p>
+          <p id="result-danger" class="danger-line"></p>
+
+          <div id="not-spider-box" class="not-spider hidden">
+            <strong>SUBMISSION REJECTED</strong>
+            <p id="not-spider-text"></p>
+          </div>
+
+          <div id="save-controls" class="save-controls">
+            <label class="field">
+              <span>Sign to a team</span>
+              <input type="text" id="team-name" list="team-list" maxlength="40" placeholder="e.g. The Web Slingers" />
+              <datalist id="team-list"></datalist>
+            </label>
+            <button id="btn-save" class="btn btn-primary">Sign to Team</button>
+          </div>
+          <p id="save-confirm" class="save-confirm hidden"></p>
+
+          <div class="share-controls">
+            <button id="btn-card" class="btn btn-ghost">⬇️ Share card</button>
+            <button id="btn-share" class="btn btn-ghost hidden">📤 Share</button>
+            <button id="btn-again" class="btn btn-ghost">🕷️ Another</button>
+          </div>
+        </div>
+      </div>
+
+      <p id="submit-error" class="error hidden"></p>
+    </div>
+  </div>
 
   <canvas id="card-canvas" width="1080" height="1350" hidden></canvas>
 

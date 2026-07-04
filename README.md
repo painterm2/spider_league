@@ -19,17 +19,28 @@ labeled, so you can try it before wiring up the key.
 
 ## How it works
 
-- **Judging** — the photo goes to Claude (vision + structured JSON output),
-  which returns species ID, confidence, nickname, beauty/power scores with
-  justifications, a scouting report, a fun fact, and a real danger rating.
-  Non-spiders (harvestmen, ticks, raisins) are identified and rejected with style.
+- **Judging** — hit "Add to Your Team" and upload a photo. It goes to Claude
+  (vision + structured JSON output), which returns two voices: the **chief
+  arachnologist** (species ID, confidence, 0–100 Beauty/Power scores with
+  morphological justifications, a formal specimen evaluation, a fun fact, and
+  a real danger rating) and the **hype correspondent** (a ring nickname and a
+  headline quote from a man who is far too emotionally invested in this
+  spider). Non-spiders (harvestmen, ticks, raisins) are identified and
+  rejected with style.
 - **Teams** — after the verdict you sign the spider to a team. Teams are
-  created on first use; type a new name or pick an existing one.
+  created on first use; the Teams tab shows every club's full roster.
 - **Leaderboard** — teams ranked by combined Beauty + Power across their
   roster, plus "Most Beautiful" and "Most Powerful" individual titles.
 - **Share card** — a 1080×1350 PNG scouting report rendered in the browser.
   Download it, or use the native share button on mobile to drop it straight
   into the group chat.
+- **Live reaction** — drop a photo of someone looking horrified at
+  `public/img/scared.jpg` and it appears (on the verdict screen and the share
+  card) whenever a spider rates Power ≥ 80 or carries medically significant
+  venom.
+- **Merch** — set `PRINTFUL_API_KEY` to a Printful private token and the
+  Merch tab lists your synced store products with prices. Without it, a
+  coming-soon rack is shown.
 
 ## Storage
 
@@ -45,6 +56,7 @@ spiders, `uploads/` for photos. Back it up by copying the folder. Set
 | `POST /api/spiders` | `{token, teamName}` → signs the judged spider to a team |
 | `GET /api/league` | Standings, rosters, and all spiders |
 | `GET /api/config` | Demo-mode flag + existing team names |
+| `GET /api/merch` | Printful store products (cached 5 min), or `configured: false` |
 
 ## Deploying for your friends
 

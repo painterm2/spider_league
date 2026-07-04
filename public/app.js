@@ -3,22 +3,68 @@
 const $ = (id) => document.getElementById(id);
 
 const state = {
-  imageDataUrl: null, // downscaled JPEG sent to the judge
+  imageDataUrl: null, // downscaled JPEG sent to the evaluation desk
   result: null,       // { token, imageId, analysis }
   saved: false,
 };
+
+/* A verdict is "extra scary" when the desk flags real danger or top-bracket power.
+   If public/img/scared.jpg exists, it appears as the correspondent's live reaction. */
+const SCARY_POWER = 80;
+function isExtraScary(a) {
+  return a.is_spider && (a.power >= SCARY_POWER || a.danger_to_humans === "medically significant");
+}
 
 /* ---------- tabs ---------- */
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
-    $("tab-submit").classList.toggle("hidden", tab.dataset.tab !== "submit");
-    $("tab-league").classList.toggle("hidden", tab.dataset.tab !== "league");
+    ["league", "teams", "merch"].forEach((name) =>
+      $("tab-" + name).classList.toggle("hidden", tab.dataset.tab !== name)
+    );
     if (tab.dataset.tab === "league") loadLeague();
+    if (tab.dataset.tab === "teams") loadTeams();
+    if (tab.dataset.tab === "merch") loadMerch();
   });
 });
 
-/* ---------- config ---------- */
+/* ---------- modal ---------- */
+const modal = $("modal");
+
+$("btn-add").addEventListener("click", () => {
+  resetSubmitFlow();
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+});
+
+modal.addEventListener("click", (e) => {
+  if (e.target.closest("[data-close]")) closeModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
+});
+
+function closeModal() {
+  modal.classList.add("hidden");
+  document.body.style.overflow = "";
+  if (state.saved) loadLeague();
+}
+
+function resetSubmitFlow() {
+  state.imageDataUrl = null;
+  state.result = null;
+  state.saved = false;
+  fileInput.value = "";
+  $("preview").classList.add("hidden");
+  dropzone.querySelector(".dropzone-idle").classList.remove("hidden");
+  $("btn-analyze").disabled = true;
+  show("step-upload", true);
+  show("step-judging", false);
+  show("step-result", false);
+  hideError();
+}
+
+/* ---------- config + hero ---------- */
 fetch("/api/config")
   .then((r) => r.json())
   .then((cfg) => {
@@ -29,6 +75,12 @@ fetch("/api/config")
 
 function fillTeamList(teams) {
   $("team-list").innerHTML = (teams || []).map((t) => `<option value="${esc(t)}">`).join("");
+}
+
+function updateHero({ teams, spiders }) {
+  $("stat-spiders").textContent = spiders.length;
+  $("stat-teams").textContent = teams.length;
+  $("stat-champ").textContent = teams[0]?.name || "—";
 }
 
 /* ---------- image pick + downscale ---------- */
@@ -81,7 +133,7 @@ const JUDGING_LINES = [
   "Reviewing web craftsmanship…",
   "Checking fang certification…",
   "Comparing against last season's roster…",
-  "Deliberating on stage presence…",
+  "The correspondent is getting emotional…",
 ];
 let judgingTimer = null;
 
@@ -109,7 +161,7 @@ $("btn-analyze").addEventListener("click", async () => {
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "The judge is unavailable.");
+    if (!res.ok) throw new Error(data.error || "The evaluation desk is unavailable.");
     state.result = data;
     state.saved = false;
     renderResult(data);
@@ -136,6 +188,7 @@ function grade(avg) {
 function renderResult({ analysis: a }) {
   $("result-photo").src = state.imageDataUrl;
   $("result-nickname").textContent = `“${a.nickname}”`;
+  $("result-quote").textContent = a.headline_quote;
   $("result-common").textContent = a.common_name;
   $("result-sci").textContent = a.scientific_name;
   $("result-confidence").textContent = `${a.confidence} confidence ID`;
@@ -162,6 +215,8 @@ function renderResult({ analysis: a }) {
         ? "Mildly venomous — a nip you'd notice, nothing more."
         : "Harmless to humans.";
 
+  renderScaredReaction(a);
+
   const isSpider = !!a.is_spider;
   show("not-spider-box", !isSpider);
   if (!isSpider) $("not-spider-text").textContent = a.verdict_if_not_spider;
@@ -169,6 +224,25 @@ function renderResult({ analysis: a }) {
   show("save-confirm", false);
 
   $("btn-share").classList.toggle("hidden", !navigator.canShare);
+}
+
+/* The correspondent's reaction photo, shown only on extra-scary verdicts.
+   Drop your reaction image at public/img/scared.jpg to enable it. */
+function renderScaredReaction(a) {
+  document.querySelector(".reaction-bubble")?.remove();
+  if (!isExtraScary(a)) return;
+  const img = new Image();
+  img.onload = () => {
+    const bubble = document.createElement("div");
+    bubble.className = "reaction-bubble";
+    bubble.title = "The correspondent's live reaction";
+    bubble.appendChild(img);
+    const label = document.createElement("span");
+    label.textContent = "LIVE REACTION";
+    bubble.appendChild(label);
+    document.querySelector(".result-photo-wrap").appendChild(bubble);
+  };
+  img.src = "img/scared.jpg"; // silently absent until you add the file
 }
 
 /* ---------- save to team ---------- */
@@ -203,6 +277,7 @@ async function makeCardBlob() {
   return drawShareCard($("card-canvas"), {
     photo: state.imageDataUrl,
     nickname: a.nickname,
+    quote: a.headline_quote,
     commonName: a.common_name,
     scientificName: a.scientific_name,
     beauty: a.beauty,
@@ -212,6 +287,7 @@ async function makeCardBlob() {
     submitter: $("submitter").value.trim(),
     teamName: state.saved ? $("team-name").value.trim() : "",
     isSpider: !!a.is_spider,
+    extraScary: isExtraScary(a),
   });
 }
 
@@ -239,22 +315,13 @@ $("btn-share").addEventListener("click", async () => {
   } catch { /* user cancelled */ }
 });
 
-$("btn-again").addEventListener("click", () => {
-  state.imageDataUrl = null;
-  state.result = null;
-  state.saved = false;
-  fileInput.value = "";
-  $("preview").classList.add("hidden");
-  dropzone.querySelector(".dropzone-idle").classList.remove("hidden");
-  $("btn-analyze").disabled = true;
-  show("step-result", false);
-  show("step-upload", true);
-  hideError();
-});
+$("btn-again").addEventListener("click", resetSubmitFlow);
 
-/* ---------- league ---------- */
+/* ---------- leaderboard ---------- */
 async function loadLeague() {
-  const { teams, spiders } = await fetch("/api/league").then((r) => r.json());
+  const league = await fetch("/api/league").then((r) => r.json());
+  const { teams, spiders } = league;
+  updateHero(league);
 
   const standings = $("standings");
   if (!teams.length) {
@@ -279,24 +346,23 @@ async function loadLeague() {
   renderAward("award-beauty", best(spiders, "beauty"), "beauty");
   renderAward("award-power", best(spiders, "power"), "power");
 
-  const grid = $("recent-spiders");
-  grid.innerHTML = spiders.length
-    ? spiders
-        .slice(0, 24)
-        .map(
-          (s) => `
-        <div class="spider-card">
-          <img src="/images/${esc(s.imageId)}" alt="${esc(s.commonName)}" loading="lazy" />
-          <div class="spider-card-body">
-            <strong>“${esc(s.nickname)}”</strong>
-            <span class="species">${esc(s.commonName)}</span>
-            <div class="spider-card-stats"><span class="b">B ${s.beauty}</span><span class="p">P ${s.power}</span></div>
-            <div class="meta">${esc(s.teamName)} · scouted by ${esc(s.submitter)}</div>
-          </div>
-        </div>`
-        )
-        .join("")
+  $("recent-spiders").innerHTML = spiders.length
+    ? spiders.slice(0, 12).map(spiderCard).join("")
     : `<p class="empty-state">No signings yet.</p>`;
+}
+
+function spiderCard(s) {
+  return `
+    <div class="spider-card">
+      <img src="/images/${esc(s.imageId)}" alt="${esc(s.commonName)}" loading="lazy" />
+      <div class="spider-card-body">
+        <strong>“${esc(s.nickname)}”</strong>
+        <span class="species">${esc(s.commonName)} · <i>${esc(s.scientificName)}</i></span>
+        ${s.headlineQuote ? `<p class="spider-card-quote">“${esc(s.headlineQuote)}”</p>` : ""}
+        <div class="spider-card-stats"><span class="b">B ${s.beauty}</span><span class="p">P ${s.power}</span></div>
+        <div class="meta">${esc(s.teamName)} · scouted by ${esc(s.submitter)}</div>
+      </div>
+    </div>`;
 }
 
 function best(spiders, stat) {
@@ -311,7 +377,87 @@ function renderAward(elId, spider, stat) {
     : `<p class="empty-state">Vacant title.</p>`;
 }
 
+/* ---------- teams tab ---------- */
+async function loadTeams() {
+  const { teams } = await fetch("/api/league").then((r) => r.json());
+  $("teams-list").innerHTML = teams.length
+    ? teams
+        .map(
+          (t, i) => `
+        <details class="team-acc" ${i === 0 ? "open" : ""}>
+          <summary>
+            <span class="team-dot" style="background:${t.color}"></span>
+            <span class="team-acc-name">
+              <strong>${esc(t.name)}</strong>
+              <span>${t.totals.spiders} spider${t.totals.spiders === 1 ? "" : "s"} on the roster</span>
+            </span>
+            <span class="team-acc-pts"><strong>${t.totals.overall}</strong><span>pts</span></span>
+            <span class="team-acc-chev">▾</span>
+          </summary>
+          <div class="team-acc-roster">
+            <div class="spider-grid">
+              ${t.roster.length ? t.roster.map(spiderCard).join("") : `<p class="empty-state">Empty roster.</p>`}
+            </div>
+          </div>
+        </details>`
+        )
+        .join("")
+    : `<p class="empty-state">No teams yet — sign the first spider and found a dynasty.</p>`;
+}
+
+/* ---------- merch tab ---------- */
+const MERCH_PLACEHOLDERS = [
+  { emoji: "👕", name: "League Tee — Home Colors" },
+  { emoji: "🧢", name: "Evaluation Desk Cap" },
+  { emoji: "☕", name: "“It Knows Things About Me” Mug" },
+  { emoji: "🧣", name: "Supporters' Scarf" },
+];
+
+async function loadMerch() {
+  const grid = $("merch-grid");
+  grid.innerHTML = `<p class="empty-state">Opening the equipment room…</p>`;
+  let data = { configured: false, products: [] };
+  try {
+    data = await fetch("/api/merch").then((r) => r.json());
+  } catch { /* fall through to placeholders */ }
+
+  if (data.configured && data.products.length) {
+    grid.innerHTML = data.products
+      .map(
+        (p) => `
+        <div class="merch-card">
+          ${p.thumbnail ? `<img class="merch-img" src="${esc(p.thumbnail)}" alt="${esc(p.name)}" loading="lazy" />` : `<div class="merch-img-placeholder">🕷️</div>`}
+          <div class="merch-card-body">
+            <strong>${esc(p.name)}</strong>
+            ${p.price != null ? `<span class="price">from ${formatPrice(p.price, p.currency)}</span>` : ""}
+          </div>
+        </div>`
+      )
+      .join("");
+  } else if (data.configured) {
+    grid.innerHTML = `<p class="empty-state">${esc(data.error || "The store is connected but empty — sync a product in Printful and it'll show up here.")}</p>`;
+  } else {
+    grid.innerHTML = MERCH_PLACEHOLDERS.map(
+      (p) => `
+      <div class="merch-card">
+        <div class="merch-img-placeholder">${p.emoji}</div>
+        <div class="merch-card-body">
+          <strong>${esc(p.name)}</strong>
+          <span class="soon">Dropping soon</span>
+        </div>
+      </div>`
+    ).join("");
+  }
+}
+
 /* ---------- helpers ---------- */
+function formatPrice(n, currency) {
+  try {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency: currency || "USD" }).format(n);
+  } catch {
+    return `$${n}`;
+  }
+}
 function show(elId, visible) {
   $(elId).classList.toggle("hidden", !visible);
 }
@@ -328,3 +474,6 @@ function esc(s) {
 function slug(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "spider";
 }
+
+/* ---------- boot ---------- */
+loadLeague();

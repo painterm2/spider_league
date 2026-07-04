@@ -67,6 +67,7 @@ app.post("/api/spiders", (req, res) => {
     scientificName: a.scientific_name,
     confidence: a.confidence,
     nickname: a.nickname,
+    headlineQuote: a.headline_quote,
     beauty: a.beauty,
     power: a.power,
     beautyNotes: a.beauty_notes,
@@ -82,6 +83,53 @@ app.post("/api/spiders", (req, res) => {
 
 app.get("/api/league", (_req, res) => {
   res.json(db.getLeague());
+});
+
+// ---- Merch (Printful) -------------------------------------------------
+// Set PRINTFUL_API_KEY to a Printful private token to list your synced
+// store products. Without it the frontend shows a coming-soon rack.
+let merchCache = { at: 0, data: null };
+
+app.get("/api/merch", async (_req, res) => {
+  const key = process.env.PRINTFUL_API_KEY;
+  if (!key) return res.json({ configured: false, products: [] });
+  if (Date.now() - merchCache.at < 5 * 60 * 1000 && merchCache.data) {
+    return res.json(merchCache.data);
+  }
+  try {
+    const listRes = await fetch("https://api.printful.com/store/products?limit=24", {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (!listRes.ok) throw new Error(`Printful responded ${listRes.status}`);
+    const list = await listRes.json();
+
+    // Pull variant pricing for each product (Printful's list endpoint has no prices).
+    const products = await Promise.all(
+      (list.result || []).map(async (p) => {
+        let price = null;
+        let currency = "USD";
+        try {
+          const detailRes = await fetch(`https://api.printful.com/store/products/${p.id}`, {
+            headers: { Authorization: `Bearer ${key}` },
+          });
+          if (detailRes.ok) {
+            const detail = await detailRes.json();
+            const variants = detail.result?.sync_variants || [];
+            const prices = variants.map((v) => parseFloat(v.retail_price)).filter((n) => !isNaN(n));
+            if (prices.length) price = Math.min(...prices);
+            currency = variants[0]?.currency || currency;
+          }
+        } catch { /* price is optional */ }
+        return { id: p.id, name: p.name, thumbnail: p.thumbnail_url, price, currency };
+      })
+    );
+
+    merchCache = { at: Date.now(), data: { configured: true, products } };
+    res.json(merchCache.data);
+  } catch (err) {
+    console.error("merch fetch failed:", err.message);
+    res.status(502).json({ configured: true, products: [], error: "Could not reach the merch supplier." });
+  }
 });
 
 app.listen(PORT, () => {
