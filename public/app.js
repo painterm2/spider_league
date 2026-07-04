@@ -567,13 +567,6 @@ async function loadTeams() {
 }
 
 /* ---------- merch tab ---------- */
-const MERCH_PLACEHOLDERS = [
-  { emoji: "👕", name: "League Tee — Home Colors" },
-  { emoji: "🧢", name: "Evaluation Desk Cap" },
-  { emoji: "☕", name: "“It Knows Things About Me” Mug" },
-  { emoji: "🧣", name: "Supporters' Scarf" },
-];
-
 async function loadMerch() {
   const grid = $("merch-grid");
   grid.innerHTML = `<p class="empty-state">Opening the equipment room…</p>`;
@@ -595,19 +588,8 @@ async function loadMerch() {
         </div>`
       )
       .join("");
-  } else if (data.configured) {
-    grid.innerHTML = `<p class="empty-state">${esc(data.error || "The store is connected but empty — sync a product in Printful and it'll show up here.")}</p>`;
   } else {
-    grid.innerHTML = MERCH_PLACEHOLDERS.map(
-      (p) => `
-      <div class="merch-card">
-        <div class="merch-img-placeholder">${p.emoji}</div>
-        <div class="merch-card-body">
-          <strong>${esc(p.name)}</strong>
-          <span class="soon">Dropping soon</span>
-        </div>
-      </div>`
-    ).join("");
+    grid.innerHTML = `<div class="merch-soon"><div class="merch-soon-icon">🕷️</div><strong>Coming soon</strong></div>`;
   }
 }
 

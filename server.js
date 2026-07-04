@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 // Bump on each deploy so a browser can confirm which build is actually live.
-const APP_VERSION = "v6-blobfix-health";
+const APP_VERSION = "v9-private-blob";
 
 app.use(express.json({ limit: "30mb" }));
 app.use(
@@ -21,8 +21,23 @@ app.use(
     },
   })
 );
-// Local/filesystem mode serves uploads itself; in Blob mode photos come from the CDN.
+// Local/filesystem mode serves uploads itself.
 app.use("/images", express.static(db.UPLOADS_DIR, { maxAge: "365d", immutable: true }));
+
+// Blob mode: photos live in a private store, so stream them through here.
+app.get("/api/image", async (req, res) => {
+  try {
+    const img = await db.getImageStream(req.query.path);
+    if (!img) return res.status(404).send("Image not found");
+    res.setHeader("Content-Type", img.contentType);
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    const { Readable } = await import("stream");
+    Readable.fromWeb(img.stream).pipe(res);
+  } catch (err) {
+    console.error("image proxy failed:", err.message);
+    res.status(err.status || 500).send("Image error");
+  }
+});
 
 // Visit /api/health in a browser to see what the live deployment actually
 // detects — safe to expose (env var NAMES only, never their secret values).
