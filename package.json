@@ -1,0 +1,21 @@
+{
+  "name": "spider-league",
+  "version": "1.0.0",
+  "description": "Submit your spider. Get judged. Build your team. Rule the league.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.61.1"
+  }
+}

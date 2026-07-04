@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spider League</title>
+  <meta name="description" content="Submit your spider. Get judged. Build your team. Rule the league." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕷️</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="web-bg" aria-hidden="true"></div>
+
+  <header class="masthead">
+    <div class="masthead-inner">
+      <span class="crest">🕷️</span>
+      <div>
+        <h1>SPIDER LEAGUE</h1>
+        <p class="tagline">Submit your spider. Get judged. Rule the league.</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="submit" role="tab">Submit a Spider</button>
+      <button class="tab" data-tab="league" role="tab">Leaderboard</button>
+    </nav>
+    <div id="demo-banner" class="demo-banner hidden">
+      DEMO MODE — the judge is improvising. Set <code>ANTHROPIC_API_KEY</code> for real spider identification.
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ SUBMIT TAB ============ -->
+    <section id="tab-submit" class="tab-panel">
+
+      <!-- Step 1: upload -->
+      <div id="step-upload" class="panel">
+        <h2 class="panel-title">Present your specimen</h2>
+        <label id="dropzone" class="dropzone" for="file-input">
+          <input type="file" id="file-input" accept="image/*" capture="environment" hidden />
+          <div class="dropzone-idle">
+            <div class="dropzone-icon">📸</div>
+            <strong>Tap to photograph or upload a spider</strong>
+            <span>JPEG, PNG or WebP · the judge sees what you see</span>
+          </div>
+          <img id="preview" class="preview hidden" alt="Your spider" />
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Handler name <em>(that's you)</em></span>
+            <input type="text" id="submitter" maxlength="40" placeholder="e.g. Dana" autocomplete="name" />
+          </label>
+        </div>
+
+        <button id="btn-analyze" class="btn btn-primary btn-big" disabled>
+          Submit to the Judge
+        </button>
+      </div>
+
+      <!-- Step 2: judging in progress -->
+      <div id="step-judging" class="panel hidden judging">
+        <div class="spinner" aria-hidden="true"></div>
+        <h2 class="panel-title">The judge is deliberating…</h2>
+        <p id="judging-line" class="judging-line">Measuring leg span…</p>
+      </div>
+
+      <!-- Step 3: verdict -->
+      <div id="step-result" class="panel hidden">
+        <div id="result-card" class="result-card">
+          <div class="result-photo-wrap">
+            <img id="result-photo" alt="The spider under review" />
+            <span id="result-grade" class="grade-badge">A</span>
+          </div>
+          <div class="result-body">
+            <p class="result-eyebrow">OFFICIAL LEAGUE EVALUATION</p>
+            <h2 id="result-nickname" class="result-nickname">“The Basement Reaper”</h2>
+            <p class="result-species">
+              <span id="result-common"></span>
+              <span id="result-sci" class="sci"></span>
+              <span id="result-confidence" class="confidence-pill"></span>
+            </p>
+
+            <div class="stat">
+              <div class="stat-head"><span>BEAUTY</span><strong id="beauty-num">0</strong></div>
+              <div class="bar"><div id="beauty-bar" class="bar-fill bar-beauty"></div></div>
+              <p id="beauty-notes" class="stat-notes"></p>
+            </div>
+            <div class="stat">
+              <div class="stat-head"><span>POWER</span><strong id="power-num">0</strong></div>
+              <div class="bar"><div id="power-bar" class="bar-fill bar-power"></div></div>
+              <p id="power-notes" class="stat-notes"></p>
+            </div>
+
+            <blockquote id="result-report" class="scouting-report"></blockquote>
+            <p class="fun-fact"><strong>Field notes:</strong> <span id="result-fact"></span></p>
+            <p id="result-danger" class="danger-line"></p>
+
+            <div id="not-spider-box" class="not-spider hidden">
+              <strong>SUBMISSION REJECTED</strong>
+              <p id="not-spider-text"></p>
+            </div>
+
+            <div id="save-controls" class="save-controls">
+              <label class="field">
+                <span>Sign to a team</span>
+                <input type="text" id="team-name" list="team-list" maxlength="40" placeholder="e.g. The Web Slingers" />
+                <datalist id="team-list"></datalist>
+              </label>
+              <button id="btn-save" class="btn btn-primary">Sign to Team</button>
+            </div>
+            <p id="save-confirm" class="save-confirm hidden"></p>
+
+            <div class="share-controls">
+              <button id="btn-card" class="btn btn-ghost">⬇️ Download share card</button>
+              <button id="btn-share" class="btn btn-ghost hidden">📤 Share to the group chat</button>
+              <button id="btn-again" class="btn btn-ghost">🕷️ Submit another</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p id="submit-error" class="error hidden"></p>
+    </section>
+
+    <!-- ============ LEAGUE TAB ============ -->
+    <section id="tab-league" class="tab-panel hidden">
+      <div class="panel">
+        <h2 class="panel-title">Team standings</h2>
+        <p class="panel-sub">Ranked by combined Beauty + Power across the full roster.</p>
+        <div id="standings"></div>
+      </div>
+
+      <div class="awards-row">
+        <div class="panel award-panel">
+          <h3>👑 Most Beautiful</h3>
+          <div id="award-beauty" class="award"></div>
+        </div>
+        <div class="panel award-panel">
+          <h3>💪 Most Powerful</h3>
+          <div id="award-power" class="award"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">Recent signings</h2>
+        <div id="recent-spiders" class="spider-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    SPIDER LEAGUE · all spiders were observed, judged, and released with respect ·
+    <span class="footer-warn">never handle a spider the judge flags as medically significant</span>
+  </footer>
+
+  <canvas id="card-canvas" width="1080" height="1350" hidden></canvas>
+
+  <script src="card.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
