@@ -70,13 +70,20 @@ async function loadConfig() {
     const res = await fetch("/api/config", { cache: "no-store" });
     if (!res.ok) throw new Error();
     const cfg = await res.json();
-    if (cfg.demoMode) $("demo-banner").classList.remove("hidden");
+    const notes = [];
+    if (cfg.demoMode) notes.push("DEMO MODE — the evaluation desk is improvising. Set the ANTHROPIC_API_KEY environment variable for real spider identification.");
+    if (cfg.storageReady === false) notes.push("⚠️ " + (cfg.storageHint || "Storage isn't connected, so spiders can't be saved."));
+    if (notes.length) {
+      $("demo-banner").textContent = notes.join(" ");
+      $("demo-banner").classList.remove("hidden");
+    }
     fillTeamList(cfg.teams);
   } catch {
     // Backend unreachable — say so plainly instead of failing cryptically later.
     fillTeamList([]);
     const banner = $("demo-banner");
-    banner.textContent = "⚠️ Can't reach the league office. Start the server with `npm start` and open the site at its address (e.g. http://localhost:3000) — not as a plain file.";
+    banner.textContent =
+      "⚠️ Can't reach the league office (the site's server isn't answering). If this is a hosted deployment, check the latest deploy finished cleanly; running locally, start it with `npm start`.";
     banner.classList.remove("hidden");
   }
 }
@@ -296,7 +303,12 @@ $("btn-save").addEventListener("click", async () => {
     const res = await fetch("/api/spiders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: state.result.token, teamName }),
+      body: JSON.stringify({
+        image: state.imageDataUrl,
+        submitter: $("submitter").value.trim(),
+        teamName,
+        analysis: state.result.analysis,
+      }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Could not save (${res.status}).`);
@@ -400,10 +412,14 @@ async function loadLeague() {
     : `<p class="empty-state">No signings yet.</p>`;
 }
 
+function spiderPhoto(s) {
+  return s.imageUrl || "/images/" + s.imageId;
+}
+
 function spiderCard(s) {
   return `
     <div class="spider-card">
-      <img src="/images/${esc(s.imageId)}" alt="${esc(s.commonName)}" loading="lazy" />
+      <img src="${esc(spiderPhoto(s))}" alt="${esc(s.commonName)}" loading="lazy" />
       <div class="spider-card-body">
         <strong>“${esc(s.nickname)}”</strong>
         <span class="species">${esc(s.commonName)} · <i>${esc(s.scientificName)}</i></span>
@@ -420,7 +436,7 @@ function best(spiders, stat) {
 
 function renderAward(elId, spider, stat) {
   $(elId).innerHTML = spider
-    ? `<img src="/images/${esc(spider.imageId)}" alt="" />
+    ? `<img src="${esc(spiderPhoto(spider))}" alt="" />
        <div><strong>“${esc(spider.nickname)}”</strong>${esc(spider.commonName)}<br>${esc(spider.teamName)}</div>
        <span class="score ${stat === "beauty" ? "beauty" : "power"}">${spider[stat]}</span>`
     : `<p class="empty-state">Vacant title.</p>`;

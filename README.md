@@ -60,7 +60,29 @@ spiders, `uploads/` for photos. Back it up by copying the folder. Set
 
 ## Deploying for your friends
 
-Any Node 18+ host with a persistent disk works (Railway, Render, Fly.io, a
-Raspberry Pi on your network). Set `ANTHROPIC_API_KEY`, expose the port, and
-make sure `./data` survives restarts. There are no accounts — anyone with the
-link can submit, which for a group chat is the point.
+### Vercel (recommended — the repo is already set up for it)
+
+The Express app runs as a Vercel serverless function (`api/index.js` +
+`vercel.json`), and spiders/photos are stored in **Vercel Blob** instead of
+the local disk. Three steps in the Vercel dashboard:
+
+1. **Import the repo** (if you haven't already) and make sure the production
+   branch is the one with this code.
+2. **Storage → Create → Blob**, and connect the store to this project. This
+   injects `BLOB_READ_WRITE_TOKEN` automatically. Without it the site loads
+   but shows a banner and refuses to save spiders.
+3. **Settings → Environment Variables →** add `ANTHROPIC_API_KEY` (and
+   optionally `PRINTFUL_API_KEY`), then **redeploy**.
+
+Judging calls can take ~20–30 seconds; `vercel.json` sets the function
+timeout to 60s, which is the Hobby-plan maximum.
+
+### Any Node host with a disk
+
+Railway, Render, Fly.io, or a Raspberry Pi also work: `npm start` runs a
+plain Express server and everything lives in `./data/` as files. Set
+`ANTHROPIC_API_KEY`, expose the port, and make sure `./data` survives
+restarts.
+
+There are no accounts — anyone with the link can submit, which for a group
+chat is the point.
